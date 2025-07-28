@@ -1,31 +1,82 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, map } from 'rxjs';
 import { environment } from '../../environments/environment';
-import { Meeting, CreateMeetingDto, UpdateMeetingDto, MeetingAnalysisResult } from '../models/meeting.model';
+import { Meeting, CreateMeetingDto, UpdateMeetingDto, MeetingAnalysisResult, MeetingStatus } from '../models/meeting.model';
+
+// Backend response interfaces
+interface BackendMeetingResponse {
+  id: number;
+  title: string;
+  description: string;
+  startTime: string;
+  endTime: string;
+  status: string;
+  participantEmails: string[];
+  createdAt: string;
+}
 
 @Injectable({
   providedIn: 'root'
 })
 export class MeetingService {
-  private apiUrl = `${environment.apiUrl}/meetings`;
+  private apiUrl = `${environment.apiUrl}/meeting`;
 
   constructor(private http: HttpClient) { }
 
+  private mapBackendToFrontend(backendMeeting: BackendMeetingResponse): Meeting {
+    return {
+      id: backendMeeting.id,
+      title: backendMeeting.title,
+      description: backendMeeting.description,
+      startTime: new Date(backendMeeting.startTime),
+      endTime: new Date(backendMeeting.endTime),
+      organizerName: 'المضيف', // Default value since backend doesn't provide this
+      participantNames: backendMeeting.participantEmails,
+      status: this.mapStatus(backendMeeting.status),
+      summary: '', // Default empty since backend doesn't provide this
+      tasks: [], // Default empty array since backend doesn't provide this
+      createdAt: new Date(backendMeeting.createdAt)
+    };
+  }
+
+  private mapStatus(backendStatus: string): MeetingStatus {
+    switch (backendStatus.toLowerCase()) {
+      case 'scheduled':
+        return MeetingStatus.Scheduled;
+      case 'inprogress':
+        return MeetingStatus.InProgress;
+      case 'completed':
+        return MeetingStatus.Completed;
+      case 'cancelled':
+        return MeetingStatus.Cancelled;
+      default:
+        return MeetingStatus.Scheduled;
+    }
+  }
+
   getAllMeetings(): Observable<Meeting[]> {
-    return this.http.get<Meeting[]>(this.apiUrl);
+    return this.http.get<BackendMeetingResponse[]>(this.apiUrl).pipe(
+      map(meetings => meetings.map(meeting => this.mapBackendToFrontend(meeting)))
+    );
   }
 
   getMeetingById(id: number): Observable<Meeting> {
-    return this.http.get<Meeting>(`${this.apiUrl}/${id}`);
+    return this.http.get<BackendMeetingResponse>(`${this.apiUrl}/${id}`).pipe(
+      map(meeting => this.mapBackendToFrontend(meeting))
+    );
   }
 
   createMeeting(meeting: CreateMeetingDto): Observable<Meeting> {
-    return this.http.post<Meeting>(this.apiUrl, meeting);
+    return this.http.post<BackendMeetingResponse>(this.apiUrl, meeting).pipe(
+      map(meeting => this.mapBackendToFrontend(meeting))
+    );
   }
 
   updateMeeting(id: number, meeting: UpdateMeetingDto): Observable<Meeting> {
-    return this.http.put<Meeting>(`${this.apiUrl}/${id}`, meeting);
+    return this.http.put<BackendMeetingResponse>(`${this.apiUrl}/${id}`, meeting).pipe(
+      map(meeting => this.mapBackendToFrontend(meeting))
+    );
   }
 
   deleteMeeting(id: number): Observable<void> {
@@ -39,11 +90,15 @@ export class MeetingService {
   }
 
   completeMeeting(id: number): Observable<Meeting> {
-    return this.http.post<Meeting>(`${this.apiUrl}/${id}/complete`, {});
+    return this.http.post<BackendMeetingResponse>(`${this.apiUrl}/${id}/complete`, {}).pipe(
+      map(meeting => this.mapBackendToFrontend(meeting))
+    );
   }
 
   getUserMeetings(userId: string): Observable<Meeting[]> {
-    return this.http.get<Meeting[]>(`${this.apiUrl}/user/${userId}`);
+    return this.http.get<BackendMeetingResponse[]>(`${this.apiUrl}/user/${userId}`).pipe(
+      map(meetings => meetings.map(meeting => this.mapBackendToFrontend(meeting)))
+    );
   }
 
   addParticipant(meetingId: number, email: string): Observable<any> {

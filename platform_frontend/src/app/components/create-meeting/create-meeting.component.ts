@@ -90,7 +90,7 @@ import { CreateJitsiMeetingDto } from '../../models/external-integration.model';
               </button>
             </div>
             
-            <div class="participants-list" *ngIf="meeting.participantEmails.length > 0">
+            <div class="participants-list" *ngIf="(meeting.participantEmails?.length || 0) > 0">
               <div class="participant-tag" *ngFor="let email of meeting.participantEmails; let i = index">
                 <span>{{ email }}</span>
                 <button type="button" class="remove-btn" (click)="removeParticipant(i)">

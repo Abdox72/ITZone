@@ -3,7 +3,7 @@ using System.Text.Json;
 
 namespace platform_backend.Controllers
 {
-    [Route("api/[controller]")]
+    [Route("api/external-integration")]
     [ApiController]
     public class ExternalIntegrationController : ControllerBase
     {

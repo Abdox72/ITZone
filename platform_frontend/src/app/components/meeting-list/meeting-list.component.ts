@@ -51,14 +51,14 @@ import { FormsModule } from '@angular/forms';
             </div>
             <div class="detail">
               <i class="fas fa-users"></i>
-              <span>{{ meeting.participantNames.length }} مشارك</span>
+              <span>{{ (meeting.participantNames?.length) || 0 }} مشارك</span>
             </div>
           </div>
 
           <div class="meeting-footer">
-            <div class="tasks-count" *ngIf="meeting.tasks.length > 0">
+            <div class="tasks-count" *ngIf="(meeting.tasks?.length || 0) > 0">
               <i class="fas fa-tasks"></i>
-              <span>{{ meeting.tasks.length }} مهمة</span>
+              <span>{{ meeting.tasks?.length || 0 }} مهمة</span>
             </div>
             <button class="btn btn-sm btn-outline-primary" (click)="$event.stopPropagation(); viewMeeting(meeting.id)">
               عرض التفاصيل

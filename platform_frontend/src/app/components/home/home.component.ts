@@ -85,7 +85,7 @@ import { Meeting, MeetingStatus } from '../../models/meeting.model';
             <p class="meeting-description">{{ meeting.description }}</p>
             <div class="meeting-meta">
               <span><i class="fas fa-calendar"></i> {{ meeting.startTime | date:'short' }}</span>
-              <span><i class="fas fa-users"></i> {{ meeting.participantNames.length }} مشارك</span>
+              <span><i class="fas fa-users"></i> {{ (meeting.participantNames?.length) || 0 }} مشارك</span>
             </div>
           </div>
         </div>
@@ -522,8 +522,8 @@ export class HomeComponent implements OnInit {
     this.meetingService.getAllMeetings().subscribe({
       next: (meetings) => {
         this.stats.totalMeetings = meetings.length;
-        this.stats.totalTasks = meetings.reduce((sum, meeting) => sum + meeting.tasks.length, 0);
-        this.stats.totalParticipants = meetings.reduce((sum, meeting) => sum + meeting.participantNames.length, 0);
+        this.stats.totalTasks = meetings.reduce((sum, meeting) => sum + (meeting.tasks?.length || 0), 0);
+        this.stats.totalParticipants = meetings.reduce((sum, meeting) => sum + (meeting.participantNames?.length || 0), 0);
         
         const completedMeetings = meetings.filter(m => m.status === MeetingStatus.Completed).length;
         this.stats.completionRate = meetings.length > 0 ? Math.round((completedMeetings / meetings.length) * 100) : 0;

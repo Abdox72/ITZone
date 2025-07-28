@@ -130,14 +130,14 @@ import { Meeting, MeetingStatus, MeetingAnalysisResult } from '../../models/meet
                 </div>
               </div>
 
-              <div class="action-items-section" *ngIf="analysisResult.actionItems.length > 0">
+              <div class="action-items-section" *ngIf="(analysisResult.actionItems?.length || 0) > 0">
                 <h4>نقاط العمل</h4>
                 <ul>
                   <li *ngFor="let item of analysisResult.actionItems">{{ item }}</li>
                 </ul>
               </div>
 
-              <div class="decisions-section" *ngIf="analysisResult.keyDecisions.length > 0">
+              <div class="decisions-section" *ngIf="(analysisResult.keyDecisions?.length || 0) > 0">
                 <h4>القرارات المهمة</h4>
                 <ul>
                   <li *ngFor="let decision of analysisResult.keyDecisions">{{ decision }}</li>
@@ -147,7 +147,7 @@ import { Meeting, MeetingStatus, MeetingAnalysisResult } from '../../models/meet
           </div>
 
           <!-- قسم المهام الموجودة -->
-          <div class="tasks-section" *ngIf="meeting.tasks.length > 0">
+          <div class="tasks-section" *ngIf="(meeting.tasks?.length || 0) > 0">
             <h3>المهام</h3>
             <div class="tasks-list">
               <div class="task-item" *ngFor="let task of meeting.tasks">

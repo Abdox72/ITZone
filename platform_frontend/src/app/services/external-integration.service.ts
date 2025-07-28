@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, map } from 'rxjs';
 import { environment } from '../../environments/environment';
 import {
   JitsiMeeting,
@@ -16,6 +16,22 @@ import {
   EmailResponse,
   OAuthCallbackResponse
 } from '../models/external-integration.model';
+import { MeetingStatus } from '../models/meeting.model';
+
+// Backend response interfaces
+interface BackendJitsiMeetingResponse {
+  id: number;
+  meetingId: string;
+  roomName: string;
+  jitsiUrl: string;
+  startTime: string;
+  endTime: string;
+  status: string;
+  isRecording: boolean;
+  recordingUrl: string;
+  participantEmails: string[];
+  createdAt: string;
+}
 
 @Injectable({
   providedIn: 'root'
@@ -25,13 +41,48 @@ export class ExternalIntegrationService {
 
   constructor(private http: HttpClient) { }
 
+  private mapJitsiBackendToFrontend(backendMeeting: BackendJitsiMeetingResponse): JitsiMeeting {
+    return {
+      id: backendMeeting.id,
+      meetingId: backendMeeting.meetingId,
+      roomName: backendMeeting.roomName,
+      jitsiUrl: backendMeeting.jitsiUrl,
+      startTime: new Date(backendMeeting.startTime),
+      endTime: new Date(backendMeeting.endTime),
+      status: this.mapStatus(backendMeeting.status),
+      isRecording: backendMeeting.isRecording,
+      recordingUrl: backendMeeting.recordingUrl,
+      participantEmails: backendMeeting.participantEmails,
+      createdAt: new Date(backendMeeting.createdAt)
+    };
+  }
+
+  private mapStatus(backendStatus: string): MeetingStatus {
+    switch (backendStatus.toLowerCase()) {
+      case 'scheduled':
+        return MeetingStatus.Scheduled;
+      case 'active':
+        return MeetingStatus.InProgress;
+      case 'completed':
+        return MeetingStatus.Completed;
+      case 'cancelled':
+        return MeetingStatus.Cancelled;
+      default:
+        return MeetingStatus.Scheduled;
+    }
+  }
+
   // Jitsi Meeting Methods
   createJitsiMeeting(createDto: CreateJitsiMeetingDto): Observable<JitsiMeeting> {
-    return this.http.post<JitsiMeeting>(`${this.apiUrl}/external-integration/jitsi/create`, createDto);
+    return this.http.post<BackendJitsiMeetingResponse>(`${this.apiUrl}/external-integration/jitsi/create`, createDto).pipe(
+      map(meeting => this.mapJitsiBackendToFrontend(meeting))
+    );
   }
 
   getJitsiMeeting(meetingId: number): Observable<JitsiMeeting> {
-    return this.http.get<JitsiMeeting>(`${this.apiUrl}/external-integration/jitsi/${meetingId}`);
+    return this.http.get<BackendJitsiMeetingResponse>(`${this.apiUrl}/external-integration/jitsi/${meetingId}`).pipe(
+      map(meeting => this.mapJitsiBackendToFrontend(meeting))
+    );
   }
 
   startRecording(meetingId: number): Observable<boolean> {

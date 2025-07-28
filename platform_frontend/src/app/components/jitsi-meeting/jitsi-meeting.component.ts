@@ -98,7 +98,7 @@ import { CreateJitsiMeetingDto, JitsiMeeting } from '../../models/external-integ
             </div>
             <div class="stat">
               <i class="fas fa-users"></i>
-              <span>عدد المشاركين: {{ currentMeeting.participantEmails?.length || 0 }}</span>
+              <span>عدد المشاركين: {{ (currentMeeting.participantEmails?.length) || 0 }}</span>
             </div>
             <div class="stat">
               <i class="fas fa-record-vinyl" [class.recording]="currentMeeting.isRecording"></i>
