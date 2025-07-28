@@ -26,10 +26,7 @@ import { AuthService } from '../../services/auth.service';
             <i class="fas fa-plus"></i>
             ميتنج جديد
           </a>
-          <a [routerLink]="['/jitsi']" class="nav-link" routerLinkActive="active">
-            <i class="fas fa-video"></i>
-            Jitsi ميتنج
-          </a>
+
           <a [routerLink]="['/integrations']" class="nav-link" routerLinkActive="active">
             <i class="fas fa-plug"></i>
             التكاملات

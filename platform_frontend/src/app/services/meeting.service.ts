@@ -1,13 +1,14 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { environment } from '../../environments/environment';
 import { Meeting, CreateMeetingDto, UpdateMeetingDto, MeetingAnalysisResult } from '../models/meeting.model';
 
 @Injectable({
   providedIn: 'root'
 })
 export class MeetingService {
-  private apiUrl = 'https://localhost:7001/api/meetings'; // تأكد من تغيير المنفذ حسب إعداداتك
+  private apiUrl = `${environment.apiUrl}/meetings`;
 
   constructor(private http: HttpClient) { }
 

@@ -1,13 +1,14 @@
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { RouterModule } from '@angular/router';
 import { ExternalIntegrationService } from '../../services/external-integration.service';
 import { CreateJitsiMeetingDto, JitsiMeeting } from '../../models/external-integration.model';
 
 @Component({
   selector: 'app-jitsi-meeting',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, RouterModule],
   template: `
     <div class="jitsi-meeting-container">
       <div class="header">
@@ -85,7 +86,7 @@ import { CreateJitsiMeetingDto, JitsiMeeting } from '../../models/external-integ
 
       <div class="meeting-details" *ngIf="currentMeeting">
         <div class="meeting-info">
-          <h3><i class="fas fa-video"></i> {{ currentMeeting.roomName }}</h3>
+          <h3><i class="fas fa-video"></i> {{ currentMeeting.roomName || 'ميتنج Jitsi' }}</h3>
           <div class="meeting-stats">
             <div class="stat">
               <i class="fas fa-clock"></i>
@@ -97,7 +98,7 @@ import { CreateJitsiMeetingDto, JitsiMeeting } from '../../models/external-integ
             </div>
             <div class="stat">
               <i class="fas fa-users"></i>
-              <span>عدد المشاركين: {{ currentMeeting.participantEmails.length }}</span>
+              <span>عدد المشاركين: {{ currentMeeting.participantEmails?.length || 0 }}</span>
             </div>
             <div class="stat">
               <i class="fas fa-record-vinyl" [class.recording]="currentMeeting.isRecording"></i>
@@ -158,6 +159,11 @@ import { CreateJitsiMeetingDto, JitsiMeeting } from '../../models/external-integ
       <div class="error-message" *ngIf="errorMessage">
         <i class="fas fa-exclamation-triangle"></i>
         {{ errorMessage }}
+      </div>
+
+      <div class="success-message" *ngIf="successMessage">
+        <i class="fas fa-check-circle"></i>
+        {{ successMessage }}
       </div>
     </div>
   `,
@@ -394,6 +400,17 @@ import { CreateJitsiMeetingDto, JitsiMeeting } from '../../models/external-integ
       gap: 10px;
     }
 
+    .success-message {
+      background: #d4edda;
+      color: #155724;
+      padding: 15px;
+      border-radius: 6px;
+      margin-top: 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
     @media (max-width: 768px) {
       .form-row {
         grid-template-columns: 1fr;
@@ -414,7 +431,7 @@ import { CreateJitsiMeetingDto, JitsiMeeting } from '../../models/external-integ
     }
   `]
 })
-export class JitsiMeetingComponent {
+export class JitsiMeetingComponent implements OnInit {
   meetingData: CreateJitsiMeetingDto = {
     roomName: '',
     startTime: new Date(),
@@ -428,8 +445,18 @@ export class JitsiMeetingComponent {
   isLoading = false;
   isRecordingLoading = false;
   errorMessage = '';
+  successMessage = '';
 
   constructor(private externalService: ExternalIntegrationService) { }
+
+  ngOnInit() {
+    // Set default times
+    const now = new Date();
+    const oneHourLater = new Date(now.getTime() + 60 * 60 * 1000);
+    
+    this.meetingData.startTime = now;
+    this.meetingData.endTime = oneHourLater;
+  }
 
   createMeeting() {
     if (this.isLoading) return;
@@ -442,11 +469,13 @@ export class JitsiMeetingComponent {
 
     this.isLoading = true;
     this.errorMessage = '';
+    this.successMessage = '';
 
     this.externalService.createJitsiMeeting(this.meetingData).subscribe({
       next: (meeting) => {
         this.currentMeeting = meeting;
         this.isLoading = false;
+        this.successMessage = 'تم إنشاء الميتنج بنجاح!';
       },
       error: (error) => {
         this.errorMessage = 'حدث خطأ أثناء إنشاء الميتنج: ' + error.message;
@@ -530,5 +559,6 @@ export class JitsiMeetingComponent {
     };
     this.participantsText = '';
     this.errorMessage = '';
+    this.successMessage = '';
   }
 } 

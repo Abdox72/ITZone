@@ -3,7 +3,9 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { MeetingService } from '../../services/meeting.service';
+import { ExternalIntegrationService } from '../../services/external-integration.service';
 import { CreateMeetingDto } from '../../models/meeting.model';
+import { CreateJitsiMeetingDto } from '../../models/external-integration.model';
 
 @Component({
   selector: 'app-create-meeting',
@@ -77,6 +79,7 @@ import { CreateMeetingDto } from '../../models/meeting.model';
             <div class="participants-input">
               <input
                 type="email"
+                name="newParticipant"
                 [(ngModel)]="newParticipant"
                 (keyup.enter)="addParticipant()"
                 class="form-control"
@@ -97,16 +100,58 @@ import { CreateMeetingDto } from '../../models/meeting.model';
             </div>
           </div>
 
+          <!-- خيارات الميتنج -->
+          <div class="meeting-options">
+            <h3>خيارات الميتنج</h3>
+            
+            <div class="option-group">
+              <label class="checkbox-label">
+                <input 
+                  type="checkbox" 
+                  [(ngModel)]="useJitsi"
+                  name="useJitsi">
+                <span class="checkmark"></span>
+                <i class="fas fa-video"></i>
+                استخدام Jitsi للميتنج
+              </label>
+              <p class="option-description">إنشاء ميتنج مع إمكانية التسجيل والتحليل التلقائي</p>
+            </div>
+
+            <div class="option-group" *ngIf="useJitsi">
+              <label class="checkbox-label">
+                <input 
+                  type="checkbox" 
+                  [(ngModel)]="enableRecording"
+                  name="enableRecording">
+                <span class="checkmark"></span>
+                <i class="fas fa-record-vinyl"></i>
+                تفعيل التسجيل التلقائي
+              </label>
+              <p class="option-description">تسجيل الميتنج تلقائياً للتحليل لاحقاً</p>
+            </div>
+          </div>
+
           <div class="form-actions">
             <button type="button" class="btn btn-outline" (click)="goBack()">
               إلغاء
             </button>
             <button type="submit" class="btn btn-primary" [disabled]="!meetingForm.valid || isSubmitting">
               <i class="fas fa-save"></i>
-              {{ isSubmitting ? 'جاري الإنشاء...' : 'إنشاء الميتنج' }}
+              {{ isSubmitting ? 'جاري الإنشاء...' : (useJitsi ? 'إنشاء ميتنج Jitsi' : 'إنشاء الميتنج') }}
             </button>
           </div>
         </form>
+      </div>
+
+      <!-- رسائل النجاح والخطأ -->
+      <div class="success-message" *ngIf="successMessage">
+        <i class="fas fa-check-circle"></i>
+        {{ successMessage }}
+      </div>
+
+      <div class="error-message" *ngIf="errorMessage">
+        <i class="fas fa-exclamation-triangle"></i>
+        {{ errorMessage }}
       </div>
     </div>
   `,
@@ -215,6 +260,52 @@ import { CreateMeetingDto } from '../../models/meeting.model';
       color: #d32f2f;
     }
 
+    .meeting-options {
+      background: #f8f9fa;
+      padding: 1.5rem;
+      border-radius: 8px;
+      border: 1px solid #e9ecef;
+    }
+
+    .meeting-options h3 {
+      color: #2c3e50;
+      margin-bottom: 1rem;
+      font-size: 1.1rem;
+    }
+
+    .option-group {
+      margin-bottom: 1rem;
+    }
+
+    .option-group:last-child {
+      margin-bottom: 0;
+    }
+
+    .checkbox-label {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      cursor: pointer;
+      font-weight: 500;
+      color: #2c3e50;
+    }
+
+    .checkbox-label input[type="checkbox"] {
+      transform: scale(1.2);
+      margin: 0;
+    }
+
+    .checkbox-label i {
+      color: #007bff;
+      font-size: 1.1rem;
+    }
+
+    .option-description {
+      color: #6c757d;
+      font-size: 0.9rem;
+      margin: 0.5rem 0 0 2rem;
+    }
+
     .form-actions {
       display: flex;
       justify-content: flex-end;
@@ -266,6 +357,28 @@ import { CreateMeetingDto } from '../../models/meeting.model';
       font-size: 0.9rem;
     }
 
+    .success-message {
+      background: #d4edda;
+      color: #155724;
+      padding: 1rem;
+      border-radius: 8px;
+      margin-top: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .error-message {
+      background: #f8d7da;
+      color: #721c24;
+      padding: 1rem;
+      border-radius: 8px;
+      margin-top: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
     @media (max-width: 768px) {
       .form-row {
         grid-template-columns: 1fr;
@@ -294,9 +407,14 @@ export class CreateMeetingComponent {
   endTimeString: string = '';
   newParticipant: string = '';
   isSubmitting: boolean = false;
+  useJitsi: boolean = false;
+  enableRecording: boolean = true;
+  successMessage: string = '';
+  errorMessage: string = '';
 
   constructor(
     private meetingService: MeetingService,
+    private externalService: ExternalIntegrationService,
     private router: Router
   ) {
     // تعيين الوقت الافتراضي
@@ -331,24 +449,53 @@ export class CreateMeetingComponent {
 
     // التحقق من صحة التواريخ
     if (this.meeting.startTime >= this.meeting.endTime) {
-      alert('يجب أن يكون وقت البداية قبل وقت النهاية');
+      this.errorMessage = 'يجب أن يكون وقت البداية قبل وقت النهاية';
       return;
     }
 
     this.isSubmitting = true;
+    this.errorMessage = '';
+    this.successMessage = '';
 
-    this.meetingService.createMeeting(this.meeting).subscribe({
-      next: (createdMeeting) => {
-        this.isSubmitting = false;
-        alert('تم إنشاء الميتنج بنجاح!');
-        this.router.navigate(['/meetings', createdMeeting.id]);
-      },
-      error: (error) => {
-        this.isSubmitting = false;
-        console.error('Error creating meeting:', error);
-        alert('حدث خطأ أثناء إنشاء الميتنج');
-      }
-    });
+    if (this.useJitsi) {
+      // إنشاء ميتنج Jitsi
+      const jitsiMeetingData: CreateJitsiMeetingDto = {
+        roomName: this.meeting.title,
+        startTime: this.meeting.startTime,
+        endTime: this.meeting.endTime,
+        participantEmails: this.meeting.participantEmails,
+        enableRecording: this.enableRecording
+      };
+
+      this.externalService.createJitsiMeeting(jitsiMeetingData).subscribe({
+        next: (jitsiMeeting) => {
+          this.isSubmitting = false;
+          this.successMessage = 'تم إنشاء ميتنج Jitsi بنجاح!';
+          setTimeout(() => {
+            this.router.navigate(['/meetings']);
+          }, 2000);
+        },
+        error: (error) => {
+          this.isSubmitting = false;
+          this.errorMessage = 'حدث خطأ أثناء إنشاء ميتنج Jitsi: ' + error.message;
+        }
+      });
+    } else {
+      // إنشاء ميتنج عادي
+      this.meetingService.createMeeting(this.meeting).subscribe({
+        next: (createdMeeting) => {
+          this.isSubmitting = false;
+          this.successMessage = 'تم إنشاء الميتنج بنجاح!';
+          setTimeout(() => {
+            this.router.navigate(['/meetings', createdMeeting.id]);
+          }, 2000);
+        },
+        error: (error) => {
+          this.isSubmitting = false;
+          this.errorMessage = 'حدث خطأ أثناء إنشاء الميتنج: ' + error.message;
+        }
+      });
+    }
   }
 
   goBack(): void {
