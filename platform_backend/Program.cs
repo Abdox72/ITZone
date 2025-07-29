@@ -5,6 +5,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllers();
+builder.Services.AddHttpClient(); // Add HTTP client factory
 
 // ✅ Add CORS
 builder.Services.AddCors(options =>
@@ -12,29 +13,10 @@ builder.Services.AddCors(options =>
     options.AddPolicy("AllowAll",
         policy =>
         {
-            policy.SetIsOriginAllowed(origin =>
-            {
-                // Allow any localhost port for development
-                return origin.StartsWith("http://localhost:") ||
-                       origin.StartsWith("https://localhost:") ||
-                       origin.StartsWith("http://127.0.0.1:") ||
-                       origin.StartsWith("https://127.0.0.1:");
-            })
-            .AllowAnyHeader()
-            .AllowAnyMethod()
-            .AllowCredentials();
-
-            //policy
-            //.WithOrigins("http://localhost:62437")
-            //.AllowAnyHeader()
-            //.AllowAnyMethod()
-            //.AllowCredentials();
-
-            //policy
-            //.WithOrigins("http://localhost:4200", "http://localhost:62437") // أضف كل الـ origins التي تستخدمها
-            //.AllowAnyHeader()
-            //.AllowAnyMethod()
-            //.AllowCredentials(); // لو تستخدم كوكي أو توكن في الهيدر
+            policy.SetIsOriginAllowed(origin => true)
+                  .AllowAnyHeader()
+                  .AllowAnyMethod()
+                  .AllowCredentials();
         });
 });
 
@@ -72,12 +54,13 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.Use(async (context, next) =>
-{
-    context.Response.Headers.Add("Cross-Origin-Opener-Policy", "same-origin");
-    context.Response.Headers.Add("Cross-Origin-Embedder-Policy", "require-corp");
-    await next();
-});
+// Remove conflicting CORS headers that might cause issues
+// app.Use(async (context, next) =>
+// {
+//     context.Response.Headers.Add("Cross-Origin-Opener-Policy", "same-origin");
+//     context.Response.Headers.Add("Cross-Origin-Embedder-Policy", "require-corp");
+//     await next();
+// });
 
 
 //builder.Services.AddControllers();
@@ -100,12 +83,12 @@ app.Use(async (context, next) =>
 
 
 // ✅ ترتيب الـ middleware مهم جدًا:
-app.UseHttpsRedirection();
+// app.UseHttpsRedirection(); // Comment out HTTPS redirection for development
 
 //builder.Services.AddHttpClient();
 
 
-app.UseCors("AllowLocalhostFrontend");    // 👈 UseCors قبل UseAuthentication
+app.UseCors("AllowAll");    // 👈 UseCors قبل UseAuthentication
 
 app.UseAuthentication();           // 👈 UseAuthentication
 app.UseAuthorization();            // 👈 UseAuthorization
