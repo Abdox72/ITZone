@@ -89,7 +89,7 @@ namespace platform_backend.Controllers
 
         private async Task<IActionResult> CallOpenRouterModel(string prompt)
         {
-            string apiKey = "sk-or-v1-Api"; // حط مفتاحك هنا أو اقرأه من الإعدادات
+            string apiKey = "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"; // حط مفتاحك هنا أو اقرأه من الإعدادات
             if (string.IsNullOrEmpty(apiKey))
                 return StatusCode(500, new { success = false, error = "Missing OpenRouter API key." });
 
