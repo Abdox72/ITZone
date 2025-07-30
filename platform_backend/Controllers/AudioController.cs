@@ -46,24 +46,25 @@ namespace platform_backend.Controllers
                 if (string.IsNullOrWhiteSpace(cleanText))
                     return BadRequest("No text found after transcription.");
 
-                // 3. Extract tasks from the transcribed text
-                var extractedTasks = ExtractTasksFromText(cleanText);
-                var summary = GenerateSummary(extractedTasks);
+                // Prepare request body
+                var requestObj = new AnalysisRequest { Text = cleanText };
+                var requestContent = new StringContent(JsonSerializer.Serialize(requestObj), Encoding.UTF8, "application/json");
 
-                var analysis = new
-                {
-                    tasks = extractedTasks,
-                    summary = summary,
-                    extractedText = cleanText,
-                    originalTranscription = transcription,
-                    totalTasks = extractedTasks.Count
-                };
+                // 3. Call summarize endpoint
+                var summarizeResponse = await _httpClient.PostAsync("http://localhost:5211/api/audio/summarize", requestContent); // Adjust port if needed
+                var summarizeResult = await summarizeResponse.Content.ReadAsStringAsync();
+
+                // 4. Call tasks extraction endpoint
+                var taskResponse = await _httpClient.PostAsync("http://localhost:5211/api/audio/tasks", requestContent);
+                var taskResult = await taskResponse.Content.ReadAsStringAsync();
 
                 return Ok(new
                 {
                     success = true,
                     transcription = transcription,
-                    analysis = analysis
+                    summary = JsonDocument.Parse(summarizeResult).RootElement,
+                    tasks = JsonDocument.Parse(taskResult).RootElement,
+                    extractedText = cleanText
                 });
             }
             catch (Exception ex)
@@ -71,6 +72,7 @@ namespace platform_backend.Controllers
                 return StatusCode(500, $"Internal server error: {ex.Message}");
             }
         }
+
 
         private async Task<string> UploadToAssemblyAsync(IFormFile audioFile)
         {
@@ -176,142 +178,85 @@ namespace platform_backend.Controllers
             }
         }
 
-        private List<string> ExtractTasksFromText(string text)
+        private async Task<IActionResult> CallOpenRouterModel(string prompt)
         {
-            var tasks = new List<string>();
-            var lines = text.Split(new[] { '\n', '\r', '.', '،', ';' }, StringSplitOptions.RemoveEmptyEntries);
+            string apiKey = "sk-or-v1-Api"; // حط مفتاحك هنا أو اقرأه من الإعدادات
+            if (string.IsNullOrEmpty(apiKey))
+                return StatusCode(500, new { success = false, error = "Missing OpenRouter API key." });
 
-            // Keywords that indicate tasks (Egyptian Arabic)
-            var taskKeywords = new[] {
-                "مهمة", "عمل", "تطوير", "إعداد", "تحديث", "إنشاء", "تصميم", "برمجة", "كتابة", "تحليل", "دراسة", "بحث", "اجتماع", "لقاء", "عرض", "تقرير", "وثيقة", "نظام", "تطبيق", "موقع", "قاعدة بيانات",
-                // Egyptian dialect additions
-                "شغل", "مشروع", "خطة", "برنامج", "فكرة", "حل", "مشكلة", "حاجة", "شيء", "موضوع", "قضية", "أمر", "مسألة", "نقطة", "فكرة", "مقترح", "اقتراح", "طلب", "حاجة", "ضرورة",
-                "تطوير", "تحسين", "تحديث", "تعديل", "تغيير", "إصلاح", "حل", "معالجة", "دراسة", "فحص", "مراجعة", "تحقق", "تأكد", "فحص", "اختبار", "تجربة", "عمل", "تنفيذ", "إنجاز", "إتمام",
-                "اجتماع", "لقاء", "مقابلة", "جلسة", "محادثة", "كلام", "حديث", "نقاش", "حوار", "مشاورة", "استشارة", "رأي", "فكرة", "اقتراح", "مقترح", "خطة", "برنامج", "جدول", "موعد",
-                "تقرير", "وثيقة", "مستند", "ملف", "ورقة", "كتاب", "مذكرة", "ملاحظة", "تسجيل", "دليل", "دليل", "كتيب", "كتالوج", "قائمة", "جدول", "إحصائيات", "أرقام", "بيانات", "معلومات",
-                "نظام", "تطبيق", "برنامج", "سوفت وير", "هارد وير", "تكنولوجيا", "تقنية", "أجهزة", "معدات", "أدوات", "أجهزة", "كمبيوتر", "لابتوب", "موبايل", "هاتف", "إنترنت", "شبكة", "ويب", "موقع", "صفحة",
-                "قاعدة بيانات", "داتا", "معلومات", "بيانات", "سجلات", "أرشيف", "ملفات", "مجلدات", "مجلد", "فولدر", "فايل", "ملف", "صورة", "فيديو", "أوديو", "صوت", "موسيقى", "نص", "كتابة", "قراءة",
-                "مبيعات", "تسويق", "إعلان", "دعاية", "ترويج", "بيع", "شراء", "تجارة", "عمل", "تجارة", "شركة", "مؤسسة", "منظمة", "جمعية", "مؤسسة", "شركة", "مكتب", "فرع", "قسم", "إدارة",
-                "موظف", "عامل", "مدير", "رئيس", "مدير", "مسؤول", "مشرف", "مراقب", "متابع", "منسق", "منظم", "مخطط", "مصمم", "مبرمج", "كاتب", "محلل", "باحث", "مدرس", "أستاذ", "دكتور",
-                "عميل", "زبون", "مستخدم", "شخص", "فرد", "مجموعة", "فريق", "طاقم", "عائلة", "أصدقاء", "زملاء", "شركاء", "شريك", "شريكة", "صديق", "صديقة", "زميل", "زميلة", "جار", "جارة",
-                "ميزانية", "مال", "فلوس", "دولار", "جنيه", "ريال", "يورو", "تكلفة", "سعر", "ثمن", "قيمة", "مبلغ", "مصاريف", "مصروفات", "إيرادات", "أرباح", "خسائر", "ربح", "خسارة", "كسب",
-                "وقت", "زمن", "مدة", "فترة", "أسبوع", "شهر", "سنة", "يوم", "ساعة", "دقيقة", "ثانية", "صباح", "مساء", "ليل", "نهار", "صباح", "ظهر", "عصر", "مغرب", "عشاء", "فجر"
-            };
-            var deadlineKeywords = new[] {
-                "الموعد النهائي", "آخر موعد", "نهاية", "الأسبوع", "الشهر", "اليوم", "غداً", "بعد غد", "الخميس", "الجمعة", "السبت", "الأحد", "الاثنين", "الثلاثاء", "الأربعاء",
-                // Egyptian dialect additions
-                "غداً", "بكرا", "بعد بكرة", "بعد غد", "بعد بكرة", "النهاردة", "دلوقتي", "الحين", "الوقت ده", "الوقت دا", "الوقت ده", "الوقت دا", "الوقت ده", "الوقت دا",
-                "الخميس", "الجمعة", "السبت", "الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "يوم الخميس", "يوم الجمعة", "يوم السبت", "يوم الأحد", "يوم الاثنين", "يوم الثلاثاء", "يوم الأربعاء",
-                "الأسبوع", "الأسبوع الجاي", "الأسبوع ده", "الأسبوع دا", "الأسبوع ده", "الأسبوع دا", "الأسبوع ده", "الأسبوع دا", "الأسبوع ده", "الأسبوع دا", "الأسبوع ده", "الأسبوع دا",
-                "الشهر", "الشهر الجاي", "الشهر ده", "الشهر دا", "الشهر ده", "الشهر دا", "الشهر ده", "الشهر دا", "الشهر ده", "الشهر دا", "الشهر ده", "الشهر دا",
-                "السنة", "السنة الجاية", "السنة ده", "السنة دا", "السنة ده", "السنة دا", "السنة ده", "السنة دا", "السنة ده", "السنة دا", "السنة ده", "السنة دا",
-                "الموعد", "الموعد النهائي", "آخر موعد", "آخر تاريخ", "آخر يوم", "آخر أسبوع", "آخر شهر", "آخر سنة", "آخر وقت", "آخر فرصة", "آخر مرة", "آخر مرة",
-                "قبل", "بعد", "خلال", "في", "على", "حول", "حوالي", "تقريباً", "تقريبا", "تقريباً", "تقريبا", "تقريباً", "تقريبا", "تقريباً", "تقريبا",
-                "الساعة", "الوقت", "الزمن", "المدة", "الفترة", "المرة", "المرة دي", "المرة دي", "المرة دي", "المرة دي", "المرة دي", "المرة دي", "المرة دي", "المرة دي",
-                "الصبح", "الظهر", "العصر", "المغرب", "العشاء", "الليل", "النهار", "النهاردة", "النهاردة", "النهاردة", "النهاردة", "النهاردة", "النهاردة", "النهاردة",
-                "النهاردة", "النهاردة", "النهاردة", "النهاردة", "النهاردة", "النهاردة", "النهاردة", "النهاردة", "النهاردة", "النهاردة", "النهاردة", "النهاردة"
+            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
+
+            var payload = new
+            {
+                model = "mistralai/mistral-7b-instruct",
+                messages = new[]
+                {
+            new { role = "system", content = "أنت مساعد يحلل الاجتماعات المكتوبة باللغة العربية." },
+            new { role = "user", content = prompt }
+        },
+                temperature = 0.3
             };
 
-            foreach (var line in lines)
+            var content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
+
+            HttpResponseMessage response;
+            try
             {
-                var cleanLine = line.Trim();
-                if (string.IsNullOrWhiteSpace(cleanLine)) continue;
-
-                // Check if line contains task keywords
-                var hasTaskKeyword = taskKeywords.Any(keyword => cleanLine.Contains(keyword, StringComparison.OrdinalIgnoreCase));
-                var hasDeadlineKeyword = deadlineKeywords.Any(keyword => cleanLine.Contains(keyword, StringComparison.OrdinalIgnoreCase));
-
-                if (hasTaskKeyword || hasDeadlineKeyword)
-                {
-                    // Extract deadline if present
-                    var deadline = ExtractDeadline(cleanLine);
-                    var task = cleanLine;
-
-                    if (!string.IsNullOrEmpty(deadline))
-                    {
-                        task = $"{cleanLine} - الموعد النهائي: {deadline}";
-                    }
-
-                    if (!tasks.Contains(task))
-                    {
-                        tasks.Add(task);
-                    }
-                }
+                response = await _httpClient.PostAsync("https://openrouter.ai/api/v1/chat/completions", content);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, error = ex.Message });
             }
 
-            // If no specific tasks found, try to extract general tasks
-            if (tasks.Count == 0)
-            {
-                var sentences = text.Split(new[] { '.', '،', ';' }, StringSplitOptions.RemoveEmptyEntries);
-                foreach (var sentence in sentences.Take(5)) // Take first 5 sentences
-                {
-                    var cleanSentence = sentence.Trim();
-                    if (cleanSentence.Length > 10 && cleanSentence.Length < 200)
-                    {
-                        tasks.Add(cleanSentence);
-                    }
-                }
-            }
+            var body = await response.Content.ReadAsStringAsync();
+            if (!response.IsSuccessStatusCode)
+                return StatusCode((int)response.StatusCode, new { success = false, error = body });
 
-            return tasks;
+            using var doc = JsonDocument.Parse(body);
+            var reply = doc.RootElement.GetProperty("choices")[0].GetProperty("message").GetProperty("content").GetString();
+
+            return Ok(new
+            {
+                success = true,
+                data = reply
+            });
         }
 
-        private string ExtractDeadline(string text)
+
+        [HttpPost("summarize")]
+        public async Task<IActionResult> SummarizeMeetingText([FromBody] AnalysisRequest request)
         {
-            var deadlineKeywords = new[] {
-                "الموعد النهائي", "آخر موعد", "نهاية", "الأسبوع", "الشهر", "اليوم", "غداً", "بعد غد",
-                // Egyptian dialect additions
-                "غداً", "بكرا", "بعد بكرة", "بعد غد", "بعد بكرة", "النهاردة", "دلوقتي", "الحين", "الوقت ده", "الوقت دا",
-                "الموعد", "الموعد النهائي", "آخر موعد", "آخر تاريخ", "آخر يوم", "آخر أسبوع", "آخر شهر", "آخر سنة", "آخر وقت", "آخر فرصة", "آخر مرة",
-                "قبل", "بعد", "خلال", "في", "على", "حول", "حوالي", "تقريباً", "تقريبا",
-                "الساعة", "الوقت", "الزمن", "المدة", "الفترة", "المرة", "المرة دي",
-                "الصبح", "الظهر", "العصر", "المغرب", "العشاء", "الليل", "النهار", "النهاردة"
-            };
-            var days = new[] {
-                "الخميس", "الجمعة", "السبت", "الأحد", "الاثنين", "الثلاثاء", "الأربعاء",
-                "يوم الخميس", "يوم الجمعة", "يوم السبت", "يوم الأحد", "يوم الاثنين", "يوم الثلاثاء", "يوم الأربعاء"
-            };
+            if (request == null || string.IsNullOrWhiteSpace(request.Text))
+                return BadRequest(new { success = false, error = "Text is required." });
 
-            foreach (var keyword in deadlineKeywords)
-            {
-                if (text.Contains(keyword, StringComparison.OrdinalIgnoreCase))
-                {
-                    var index = text.IndexOf(keyword, StringComparison.OrdinalIgnoreCase);
-                    var afterKeyword = text.Substring(index + keyword.Length).Trim();
-                    var words = afterKeyword.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-                    if (words.Length > 0)
-                    {
-                        return $"{keyword} {words[0]}";
-                    }
-                }
-            }
+            var summaryPrompt = $@"
+ألخص لك الاجتماع التالي باللغة العربية. من فضلك قدم ملخصاً موجزاً ومهماً وواضحاً:
 
-            foreach (var day in days)
-            {
-                if (text.Contains(day, StringComparison.OrdinalIgnoreCase))
-                {
-                    return day;
-                }
-            }
+النص:
+{request.Text.Replace("\n", " ").Replace("\r", " ").Trim()}";
 
-            return "";
+            var result = await CallOpenRouterModel(summaryPrompt);
+            return result;
         }
 
-        private string GenerateSummary(List<string> tasks)
+        [HttpPost("tasks")]
+        public async Task<IActionResult> ExtractTasksFromMeeting([FromBody] AnalysisRequest request)
         {
-            if (tasks.Count == 0)
-                return "لم يتم العثور على مهام محددة في النص.";
+            if (request == null || string.IsNullOrWhiteSpace(request.Text))
+                return BadRequest(new { success = false, error = "Text is required." });
 
-            var taskCount = tasks.Count;
-            var summary = $"تم تحديد {taskCount} مهام رئيسية";
+            var taskPrompt = $@"
+نص الاجتماع التالي مكتوب باللغة العربية. استخرج منه قائمة بالمهام المطلوب تنفيذها مع تحديد الموعد النهائي لكل مهمة إن وُجد. رجاءً استخدم تنسيقًا مرتبًا مثل:
+- المهمة: ...
+- الموعد النهائي: ... (إن وُجد)
 
-            if (tasks.Any(t => t.Contains("الموعد النهائي")))
-            {
-                summary += " مع مواعيد نهائية محددة";
-            }
+النص:
+{request.Text.Replace("\n", " ").Replace("\r", " ").Trim()}";
 
-            summary += ".";
-            return summary;
+            var result = await CallOpenRouterModel(taskPrompt);
+            return result;
         }
+
     }
 }
