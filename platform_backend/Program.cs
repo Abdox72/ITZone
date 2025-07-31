@@ -3,6 +3,9 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 builder.Services.AddControllers();
 
+// Add HttpClient for external service calls
+builder.Services.AddHttpClient();
+
 // Add CORS
 builder.Services.AddCors(options =>
 {
@@ -13,9 +16,9 @@ builder.Services.AddCors(options =>
             {
                 // Allow any localhost port for development
                 return origin.StartsWith("http://localhost:") || 
-                       origin.StartsWith("https://localhost:") ||
-                       origin.StartsWith("http://127.0.0.1:") ||
-                       origin.StartsWith("https://127.0.0.1:");
+                        origin.StartsWith("https://localhost:") ||
+                        origin.StartsWith("http://127.0.0.1:") ||
+                        origin.StartsWith("https://127.0.0.1:");
             })
             .AllowAnyHeader()
             .AllowAnyMethod()

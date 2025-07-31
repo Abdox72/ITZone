@@ -1,0 +1,131 @@
+<div class="home-container">
+  <!-- Hero Section -->
+  <section class="hero-section">
+    <div class="hero-content">
+      <h1>منصة الميتنجات الذكية</h1>
+      <p>قم بإدارة ميتنجاتك بذكاء واستخرج المهام تلقائياً من تسجيلات الصوت</p>
+      <div class="hero-actions">
+        <button class="btn btn-primary btn-large" routerLink="/meetings/new">
+          <i class="fas fa-plus"></i>
+          إنشاء ميتنج جديد
+        </button>
+        <button class="btn btn-outline btn-large" routerLink="/meetings">
+          <i class="fas fa-calendar"></i>
+          عرض الميتنجات
+        </button>
+      </div>
+    </div>
+    <div class="hero-image">
+      <i class="fas fa-video"></i>
+    </div>
+  </section>
+
+  <!-- Features Section -->
+  <section class="features-section">
+    <h2>المميزات الرئيسية</h2>
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon">
+          <i class="fas fa-microphone"></i>
+        </div>
+        <h3>تحليل الصوت الذكي</h3>
+        <p>قم برفع تسجيل الميتنج واحصل على نص مفصل وتحليل شامل للمحتوى</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">
+          <i class="fas fa-tasks"></i>
+        </div>
+        <h3>استخراج المهام تلقائياً</h3>
+        <p>يتم تحديد المهام والمسؤولين عنها تلقائياً من خلال تحليل المحادثة</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">
+          <i class="fas fa-link"></i>
+        </div>
+        <h3>ربط مع المنصات الخارجية</h3>
+        <p>ربط مباشر مع Trello و Gmail و Google Calendar لإدارة المهام</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">
+          <i class="fas fa-chart-line"></i>
+        </div>
+        <h3>تقارير وتحليلات</h3>
+        <p>احصل على تقارير مفصلة عن أداء الميتنجات والمهام المنجزة</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Recent Meetings Section -->
+  <section class="recent-meetings-section" *ngIf="recentMeetings.length > 0">
+    <div class="section-header">
+      <h2>آخر الميتنجات</h2>
+      <button class="btn btn-outline" routerLink="/meetings">
+        عرض الكل
+      </button>
+    </div>
+    <div class="meetings-grid">
+      <div class="meeting-card" *ngFor="let meeting of recentMeetings" [routerLink]="['/meetings', meeting.id]">
+        <div class="meeting-header">
+          <h3>{{ meeting.title }}</h3>
+          <span class="status-badge" [class]="getStatusClass(meeting.status)">
+            {{ getStatusText(meeting.status) }}
+          </span>
+        </div>
+        <p class="meeting-description">{{ meeting.description }}</p>
+        <div class="meeting-meta">
+          <span><i class="fas fa-calendar"></i> {{ meeting.startTime | date:'short' }}</span>
+          <span><i class="fas fa-users"></i> {{ (meeting.participantNames.length) || 0 }} مشارك</span>
+        </div>
+        <div class="meeting-actions">
+          <button class="btn btn-sm btn-primary" (click)="$event.stopPropagation(); joinMeeting(meeting)">
+            <i class="fas fa-video"></i>
+            انضم للميتنج
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Stats Section -->
+  <section class="stats-section">
+    <h2>إحصائيات سريعة</h2>
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-icon">
+          <i class="fas fa-calendar-check"></i>
+        </div>
+        <div class="stat-content">
+          <h3>{{ stats.totalMeetings }}</h3>
+          <p>إجمالي الميتنجات</p>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">
+          <i class="fas fa-tasks"></i>
+        </div>
+        <div class="stat-content">
+          <h3>{{ stats.totalTasks }}</h3>
+          <p>المهام المحددة</p>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">
+          <i class="fas fa-users"></i>
+        </div>
+        <div class="stat-content">
+          <h3>{{ stats.totalParticipants }}</h3>
+          <p>المشاركون</p>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">
+          <i class="fas fa-chart-line"></i>
+        </div>
+        <div class="stat-content">
+          <h3>{{ stats.completionRate }}%</h3>
+          <p>معدل الإنجاز</p>
+        </div>
+      </div>
+    </div>
+  </section>
+</div> 

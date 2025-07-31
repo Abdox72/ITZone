@@ -1,0 +1,74 @@
+<div class="meeting-list-container">
+  <div class="header">
+    <h1>الميتنجات</h1>
+    <button class="btn btn-primary" routerLink="/meetings/new">
+      <i class="fas fa-plus"></i>
+      ميتنج جديد
+    </button>
+  </div>
+
+  <div class="filters">
+    <select [(ngModel)]="selectedStatus" (change)="filterMeetings()" class="form-select">
+      <option value="">جميع الميتنجات</option>
+      <option value="Scheduled">مجدولة</option>
+      <option value="InProgress">قيد التنفيذ</option>
+      <option value="Completed">مكتملة</option>
+      <option value="Cancelled">ملغية</option>
+    </select>
+  </div>
+
+  <div class="meetings-grid" *ngIf="filteredMeetings.length > 0; else noMeetings">
+    <div class="meeting-card" *ngFor="let meeting of filteredMeetings" [routerLink]="['/meetings', meeting.id]">
+      <div class="meeting-header">
+        <h3>{{ meeting.title }}</h3>
+        <span class="status-badge" [class]="getStatusClass(meeting.status)">
+          {{ getStatusText(meeting.status) }}
+        </span>
+      </div>
+      
+      <p class="description">{{ meeting.description }}</p>
+      
+      <div class="meeting-details">
+        <div class="detail">
+          <i class="fas fa-calendar"></i>
+          <span>{{ meeting.startTime | date:'short' }}</span>
+        </div>
+        <div class="detail">
+          <i class="fas fa-user"></i>
+          <span>{{ meeting.organizerName }}</span>
+        </div>
+        <div class="detail">
+          <i class="fas fa-users"></i>
+          <span>{{ (meeting.participantNames.length) || 0 }} مشارك</span>
+        </div>
+      </div>
+
+      <div class="meeting-footer">
+        <div class="tasks-count" *ngIf="(meeting.tasks?.length || 0) > 0">
+          <i class="fas fa-tasks"></i>
+          <span>{{ meeting.tasks.length || 0 }} مهمة</span>
+        </div>
+        <div class="meeting-actions">
+          <button class="btn btn-sm btn-primary" (click)="$event.stopPropagation(); joinMeeting(meeting)">
+            <i class="fas fa-video"></i>
+            انضم للميتنج
+          </button>
+          <button class="btn btn-sm btn-outline-primary" (click)="$event.stopPropagation(); viewMeeting(meeting.id)">
+            عرض التفاصيل
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <ng-template #noMeetings>
+    <div class="no-meetings">
+      <i class="fas fa-calendar-times"></i>
+      <h3>لا توجد ميتنجات</h3>
+      <p>ابدأ بإنشاء ميتنج جديد</p>
+      <button class="btn btn-primary" routerLink="/meetings/new">
+        إنشاء ميتنج
+      </button>
+    </div>
+  </ng-template>
+</div> 

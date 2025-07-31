@@ -3,7 +3,6 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { MeetingService } from '../../services/meeting.service';
-import { ExternalIntegrationService } from '../../services/external-integration.service';
 import { CreateMeetingDto } from '../../models/meeting.model';
 import { CreateJitsiMeetingDto } from '../../models/external-integration.model';
 
@@ -414,7 +413,6 @@ export class CreateMeetingComponent {
 
   constructor(
     private meetingService: MeetingService,
-    private externalService: ExternalIntegrationService,
     private router: Router
   ) {
     // تعيين الوقت الافتراضي
@@ -457,45 +455,20 @@ export class CreateMeetingComponent {
     this.errorMessage = '';
     this.successMessage = '';
 
-    if (this.useJitsi) {
-      // إنشاء ميتنج Jitsi
-      const jitsiMeetingData: CreateJitsiMeetingDto = {
-        roomName: this.meeting.title,
-        startTime: this.meeting.startTime,
-        endTime: this.meeting.endTime,
-        participantEmails: this.meeting.participantEmails,
-        enableRecording: this.enableRecording
-      };
-
-      this.externalService.createJitsiMeeting(jitsiMeetingData).subscribe({
-        next: (jitsiMeeting) => {
-          this.isSubmitting = false;
-          this.successMessage = 'تم إنشاء ميتنج Jitsi بنجاح!';
-          setTimeout(() => {
-            this.router.navigate(['/meetings']);
-          }, 2000);
-        },
-        error: (error) => {
-          this.isSubmitting = false;
-          this.errorMessage = 'حدث خطأ أثناء إنشاء ميتنج Jitsi: ' + error.message;
-        }
-      });
-    } else {
-      // إنشاء ميتنج عادي
-      this.meetingService.createMeeting(this.meeting).subscribe({
-        next: (createdMeeting) => {
-          this.isSubmitting = false;
-          this.successMessage = 'تم إنشاء الميتنج بنجاح!';
-          setTimeout(() => {
-            this.router.navigate(['/meetings', createdMeeting.id]);
-          }, 2000);
-        },
-        error: (error) => {
-          this.isSubmitting = false;
-          this.errorMessage = 'حدث خطأ أثناء إنشاء الميتنج: ' + error.message;
-        }
-      });
-    }
+    // فقط منطق محلي لإنشاء الميتنج
+    this.meetingService.createMeeting(this.meeting).subscribe({
+      next: (createdMeeting) => {
+        this.isSubmitting = false;
+        this.successMessage = 'تم إنشاء الميتنج بنجاح!';
+        setTimeout(() => {
+          this.router.navigate(['/meetings', createdMeeting.id]);
+        }, 2000);
+      },
+      error: (error) => {
+        this.isSubmitting = false;
+        this.errorMessage = 'حدث خطأ أثناء إنشاء الميتنج: ' + error.message;
+      }
+    });
   }
 
   goBack(): void {

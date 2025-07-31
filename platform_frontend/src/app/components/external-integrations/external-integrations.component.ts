@@ -1,6 +1,5 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ExternalIntegrationService } from '../../services/external-integration.service';
 import { AuthService } from '../../services/auth.service';
 import { ExternalIntegration } from '../../models/external-integration.model';
 
@@ -445,21 +444,14 @@ export class ExternalIntegrationsComponent implements OnInit {
   isConnecting = false;
   errorMessage = '';
 
-  constructor(public externalService: ExternalIntegrationService, public auth: AuthService) { }
+  constructor(public auth: AuthService) { }
 
   ngOnInit() {
     this.loadIntegrations();
   }
 
   loadIntegrations() {
-    this.externalService.getUserIntegrations().subscribe({
-      next: (integrations) => {
-        this.integrations = integrations;
-      },
-      error: (error) => {
-        this.errorMessage = 'حدث خطأ أثناء تحميل التكاملات: ' + error.message;
-      }
-    });
+
   }
 
   isConnected(platform: string): boolean {
@@ -479,33 +471,11 @@ export class ExternalIntegrationsComponent implements OnInit {
   connectService(platform: string) {
     this.isConnecting = true;
     this.errorMessage = '';
-
-    this.externalService.getAuthorizationUrl(platform).subscribe({
-      next: (authUrl) => {
-        // في التطبيق الحقيقي، سيتم فتح نافذة OAuth
-        window.open(authUrl, '_blank', 'width=500,height=600');
-        this.isConnecting = false;
-      },
-      error: (error) => {
-        this.errorMessage = 'حدث خطأ أثناء الحصول على رابط التصريح: ' + error.message;
-        this.isConnecting = false;
-      }
-    });
   }
 
   disconnectService(platform: string) {
     const integration = this.integrations.find(i => i.platform === platform);
     if (!integration) return;
 
-    this.externalService.disconnectExternalService(integration.id).subscribe({
-      next: (success) => {
-        if (success) {
-          this.loadIntegrations(); // إعادة تحميل التكاملات
-        }
-      },
-      error: (error) => {
-        this.errorMessage = 'حدث خطأ أثناء قطع الاتصال: ' + error.message;
-      }
-    });
   }
 } 

@@ -1,3 +1,10 @@
+export enum MeetingStatus {
+  Scheduled = 'scheduled',
+  InProgress = 'in-progress',
+  Completed = 'completed',
+  Cancelled = 'cancelled'
+}
+
 export interface Meeting {
   id: number;
   title: string;
@@ -7,49 +14,49 @@ export interface Meeting {
   organizerName: string;
   participantNames: string[];
   status: MeetingStatus;
-  summary?: string;
+  summary: string;
   tasks: MeetingTask[];
   createdAt: Date;
-}
-
-export enum MeetingStatus {
-  Scheduled = 'Scheduled',
-  InProgress = 'InProgress',
-  Completed = 'Completed',
-  Cancelled = 'Cancelled'
+  organizerEmail?: string;
+  jitsiRoomName?: string;
+  isRecordingEnabled?: boolean;
+  recordingUrl?: string;
+  meetingNotes?: string;
+  startedAt?: Date;
+  completedAt?: Date;
 }
 
 export interface MeetingTask {
   id: number;
   title: string;
   description: string;
-  assignedToName: string;
-  dueDate: Date;
-  priority: TaskPriority;
-  status: TaskStatus;
-  externalPlatform: ExternalPlatform;
-  externalTaskId?: string;
+  assignedTo: string;
+  assignedToName?: string;
+  priority: string;
+  status: string;
+  createdAt: Date;
+  dueDate?: Date;
+  externalPlatform?: string;
 }
 
-export enum TaskPriority {
-  Low = 'Low',
-  Medium = 'Medium',
-  High = 'High',
-  Critical = 'Critical'
+export interface MeetingAnalysisResult {
+  summary: string;
+  actionItems: string[];
+  keyDecisions: string[];
+  participants: string[];
+  duration: number;
+  transcript?: string;
+  tasks?: MeetingTask[];
 }
 
-export enum TaskStatus {
-  Pending = 'Pending',
-  InProgress = 'InProgress',
-  Completed = 'Completed',
-  Cancelled = 'Cancelled'
-}
-
-export enum ExternalPlatform {
-  None = 'None',
-  Trello = 'Trello',
-  Gmail = 'Gmail',
-  GoogleCalendar = 'GoogleCalendar'
+export interface CreateMeetingRequest {
+  title: string;
+  description: string;
+  startTime: Date;
+  endTime: Date;
+  participantEmails?: string[];
+  organizerEmail?: string;
+  isRecordingEnabled?: boolean;
 }
 
 export interface CreateMeetingDto {
@@ -58,20 +65,38 @@ export interface CreateMeetingDto {
   startTime: Date;
   endTime: Date;
   participantEmails: string[];
+  organizerEmail?: string;
+  isRecordingEnabled?: boolean;
 }
 
-export interface UpdateMeetingDto {
+export interface UpdateMeetingRequest {
   title: string;
   description: string;
   startTime: Date;
   endTime: Date;
-  participantEmails: string[];
+  participantEmails?: string[];
+  isRecordingEnabled?: boolean;
 }
 
-export interface MeetingAnalysisResult {
-  summary: string;
-  tasks: MeetingTask[];
-  actionItems: string[];
-  keyDecisions: string[];
-  participantContributions: { [key: string]: string[] };
+export interface AddTaskRequest {
+  title: string;
+  description: string;
+  assignedTo: string;
+  priority: string;
+}
+
+export interface UpdateTaskRequest {
+  title: string;
+  description: string;
+  assignedTo: string;
+  priority: string;
+  status: string;
+}
+
+export interface UpdateNotesRequest {
+  notes: string;
+}
+
+export interface UpdateRecordingRequest {
+  recordingUrl: string;
 } 

@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { MeetingService } from '../../services/meeting.service';
 import { Meeting, MeetingStatus, MeetingAnalysisResult } from '../../models/meeting.model';
+import { JitsiMeeting } from '../../models/external-integration.model';
 
 @Component({
   selector: 'app-meeting-details',
@@ -16,6 +17,10 @@ import { Meeting, MeetingStatus, MeetingAnalysisResult } from '../../models/meet
           رجوع
         </button>
         <div class="actions">
+          <button class="btn btn-primary" (click)="joinMeeting()">
+            <i class="fas fa-video"></i>
+            انضم للميتنج
+          </button>
           <button class="btn btn-outline" (click)="editMeeting()">
             <i class="fas fa-edit"></i>
             تعديل
@@ -123,7 +128,7 @@ import { Meeting, MeetingStatus, MeetingAnalysisResult } from '../../models/meet
                       <span><i class="fas fa-user"></i> {{ task.assignedToName }}</span>
                       <span><i class="fas fa-calendar"></i> {{ task.dueDate | date:'short' }}</span>
                       <span class="platform-badge" *ngIf="task.externalPlatform !== 'None'">
-                        <i class="fas fa-link"></i> {{ getPlatformText(task.externalPlatform) }}
+                        <i class="fas fa-link"></i> {{ getPlatformText(task.externalPlatform || 'None') }}
                       </span>
                     </div>
                   </div>
@@ -516,8 +521,7 @@ export class MeetingDetailsComponent implements OnInit {
   constructor(
     private route: ActivatedRoute,
     private router: Router,
-    private meetingService: MeetingService
-  ) {}
+    private meetingService: MeetingService ) {}
 
   ngOnInit(): void {
     const id = this.route.snapshot.paramMap.get('id');
@@ -554,19 +558,26 @@ export class MeetingDetailsComponent implements OnInit {
 
     this.isAnalyzing = true;
     this.meetingService.analyzeMeetingAudio(this.meeting.id, this.selectedFile).subscribe({
-      next: (result) => {
+      next: (result: any) => {
         this.analysisResult = result;
         this.isAnalyzing = false;
         alert('تم تحليل الميتنج بنجاح!');
         // إعادة تحميل الميتنج لعرض المهام الجديدة
         this.loadMeeting(this.meeting!.id);
       },
-      error: (error) => {
+      error: (error: any) => {
         this.isAnalyzing = false;
         console.error('Error analyzing audio:', error);
         alert('حدث خطأ أثناء تحليل الصوت');
       }
     });
+  }
+
+  joinMeeting(): void {
+    if (!this.meeting) return;
+    const roomName = `meeting-${this.meeting.id}`;
+    const userName = 'مستخدم'; // يمكنك استبداله باسم المستخدم من خدمة auth
+    this.router.navigate(['/embedded-jitsi'], { queryParams: { roomName, userName } });
   }
 
   editMeeting(): void {
