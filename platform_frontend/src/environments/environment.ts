@@ -1,5 +1,6 @@
 export const environment = {
-  apiUrl: 'https://localhost:5211/api',
+  apiUrl: 'http://localhost:5211/api',
+  googleClientId: '700910860503-k5ucu00uk2q8cjsch2gktevfm0nfq32l.apps.googleusercontent.com'
   googleClientId: 'YOUR_GOOGLE_CLIENT_ID_HERE',
   jitsiService: {
     domain: 'https://localhost:8443',
