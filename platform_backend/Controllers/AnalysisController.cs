@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Net.Http;
@@ -9,6 +10,7 @@ using System.Threading.Tasks;
 
 namespace platform_backend.Controllers
 {
+    [AllowAnonymous]
     [Route("api/[controller]")]
     [ApiController]
     public class AnalysisController : ControllerBase
@@ -20,15 +22,20 @@ namespace platform_backend.Controllers
             _httpClient = httpClientFactory.CreateClient();
         }
 
+        [AllowAnonymous]
         [HttpPost("analyze")]
         public async Task<IActionResult> AnalyzeMeetingText([FromBody] AnalysisRequest request)
         {
             if (request == null || string.IsNullOrWhiteSpace(request.Text))
                 return BadRequest(new { success = false, error = "Text is required." });
 
+            // Basic rate limiting - prevent abuse
+            if (request.Text.Length > 50000) // 50KB limit
+                return BadRequest(new { success = false, error = "Text too long. Maximum 50,000 characters allowed." });
+
             var cleanText = request.Text.Replace("\n", " ").Replace("\r", " ").Trim();
 
-            string apiKey = "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"; // 🔐 استخدم API Key صحيح وآمن
+            string apiKey = "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"; // 🔐 استخدم API Key صحيح وآمن
             if (string.IsNullOrEmpty(apiKey))
                 return StatusCode(500, new { success = false, error = "Missing OpenRouter API key." });
 
@@ -89,10 +96,12 @@ namespace platform_backend.Controllers
 
         private async Task<IActionResult> CallOpenRouterModel(string prompt)
         {
-            string apiKey = "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"; // حط مفتاحك هنا أو اقرأه من الإعدادات
+            string apiKey = "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"; // حط مفتاحك هنا أو اقرأه من الإعدادات
             if (string.IsNullOrEmpty(apiKey))
                 return StatusCode(500, new { success = false, error = "Missing OpenRouter API key." });
 
+            // Clear any existing authorization headers first
+            _httpClient.DefaultRequestHeaders.Authorization = null;
             _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
 
             var payload = new
@@ -132,12 +141,16 @@ namespace platform_backend.Controllers
             });
         }
 
-
+        [AllowAnonymous]
         [HttpPost("summarize")]
         public async Task<IActionResult> SummarizeMeetingText([FromBody] AnalysisRequest request)
         {
             if (request == null || string.IsNullOrWhiteSpace(request.Text))
                 return BadRequest(new { success = false, error = "Text is required." });
+
+            // Basic rate limiting - prevent abuse
+            if (request.Text.Length > 50000) // 50KB limit
+                return BadRequest(new { success = false, error = "Text too long. Maximum 50,000 characters allowed." });
 
             var summaryPrompt = $@"
 ألخص لك الاجتماع التالي باللغة العربية. من فضلك قدم ملخصاً موجزاً ومهماً وواضحاً:
@@ -149,11 +162,16 @@ namespace platform_backend.Controllers
             return result;
         }
 
+        [AllowAnonymous]
         [HttpPost("tasks")]
         public async Task<IActionResult> ExtractTasksFromMeeting([FromBody] AnalysisRequest request)
         {
             if (request == null || string.IsNullOrWhiteSpace(request.Text))
                 return BadRequest(new { success = false, error = "Text is required." });
+
+            // Basic rate limiting - prevent abuse
+            if (request.Text.Length > 50000) // 50KB limit
+                return BadRequest(new { success = false, error = "Text too long. Maximum 50,000 characters allowed." });
 
             var taskPrompt = $@"
 نص الاجتماع التالي مكتوب باللغة العربية. استخرج منه قائمة بالمهام المطلوب تنفيذها مع تحديد الموعد النهائي لكل مهمة إن وُجد. رجاءً استخدم تنسيقًا مرتبًا مثل:

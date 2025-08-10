@@ -77,6 +77,7 @@
 //        public string GmailBody { get; set; }
 //    }
 //}
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Net;
 using System.Net.Http;
@@ -87,6 +88,7 @@ using System.Threading.Tasks;
 
 namespace platform_backend.Controllers
 {
+    [AllowAnonymous]
     [ApiController]
     [Route("api/[controller]")]
     public class IntegrationController : ControllerBase
@@ -104,6 +106,7 @@ namespace platform_backend.Controllers
             _httpClient = httpClientFactory.CreateClient();
         }
 
+        [AllowAnonymous]
         [HttpPost("send-all")]
         public async Task<IActionResult> CreateTrelloCardAndSendEmail([FromBody] TaskIntegrationRequest request)
         {

@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System;
@@ -7,12 +8,13 @@ using System.Text.Json;
 
 namespace platform_backend.Controllers
 {
+    [AllowAnonymous]
     [Route("api/[controller]")]
     [ApiController]
     public class AudioController : ControllerBase
     {
         private readonly HttpClient _httpClient;
-        private const string AssemblyApiKey = "f72f2d7779924976acfbfbab7c6a3e4f";
+        private const string AssemblyApiKey = "93efb842b26d40edb03691c9aa012560";
 
         public AudioController(IHttpClientFactory httpClientFactory)
         {
@@ -20,6 +22,7 @@ namespace platform_backend.Controllers
             _httpClient.Timeout = TimeSpan.FromMinutes(15);
         }
 
+        [AllowAnonymous]
         [HttpPost("transcribe-and-analyze")]
         public async Task<IActionResult> TranscribeAndAnalyze(IFormFile audioFile)
         {
@@ -27,6 +30,10 @@ namespace platform_backend.Controllers
             {
                 if (audioFile == null || audioFile.Length == 0)
                     return BadRequest("Please upload a valid audio file.");
+
+                // File size limit - 100MB max
+                if (audioFile.Length > 100 * 1024 * 1024)
+                    return BadRequest("File too large. Maximum 100MB allowed.");
 
                 var validTypes = new[] { "audio/mpeg", "audio/wav", "audio/mp3", "audio/flac" };
                 if (!validTypes.Contains(audioFile.ContentType))
@@ -180,7 +187,7 @@ namespace platform_backend.Controllers
 
         private async Task<IActionResult> CallOpenRouterModel(string prompt)
         {
-            string apiKey = "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"; // حط مفتاحك هنا أو اقرأه من الإعدادات
+            string apiKey = "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"; // حط مفتاحك هنا أو اقرأه من الإعدادات
             if (string.IsNullOrEmpty(apiKey))
                 return StatusCode(500, new { success = false, error = "Missing OpenRouter API key." });
 
@@ -223,12 +230,16 @@ namespace platform_backend.Controllers
             });
         }
 
-
+        [AllowAnonymous]
         [HttpPost("summarize")]
         public async Task<IActionResult> SummarizeMeetingText([FromBody] AnalysisRequest request)
         {
             if (request == null || string.IsNullOrWhiteSpace(request.Text))
                 return BadRequest(new { success = false, error = "Text is required." });
+
+            // Basic rate limiting - prevent abuse
+            if (request.Text.Length > 50000) // 50KB limit
+                return BadRequest(new { success = false, error = "Text too long. Maximum 50,000 characters allowed." });
 
             var summaryPrompt = $@"
 ألخص لك الاجتماع التالي باللغة العربية. من فضلك قدم ملخصاً موجزاً ومهماً وواضحاً:
@@ -240,11 +251,16 @@ namespace platform_backend.Controllers
             return result;
         }
 
+        [AllowAnonymous]
         [HttpPost("tasks")]
         public async Task<IActionResult> ExtractTasksFromMeeting([FromBody] AnalysisRequest request)
         {
             if (request == null || string.IsNullOrWhiteSpace(request.Text))
                 return BadRequest(new { success = false, error = "Text is required." });
+
+            // Basic rate limiting - prevent abuse
+            if (request.Text.Length > 50000) // 50KB limit
+                return BadRequest(new { success = false, error = "Text too long. Maximum 50,000 characters allowed." });
 
             var taskPrompt = $@"
 نص الاجتماع التالي مكتوب باللغة العربية. استخرج منه قائمة بالمهام المطلوب تنفيذها مع تحديد الموعد النهائي لكل مهمة إن وُجد. رجاءً استخدم تنسيقًا مرتبًا مثل:

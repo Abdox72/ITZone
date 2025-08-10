@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System.Net.Http.Headers;
 using System.Text;
@@ -6,6 +7,7 @@ using System.Text.Json;
 
 namespace platform_backend.Controllers
 {
+    [AllowAnonymous]
     [Route("api/[controller]")]
     [ApiController]
     public class TranscribeController : ControllerBase
@@ -21,11 +23,16 @@ namespace platform_backend.Controllers
             };
         }
 
+        [AllowAnonymous]
         [HttpPost("transcribe")]
         public async Task<IActionResult> TranscribeAudio(IFormFile audioFile)
         {
             if (audioFile == null || audioFile.Length == 0)
                 return BadRequest("Please upload a valid audio file.");
+
+            // File size limit - 100MB max
+            if (audioFile.Length > 100 * 1024 * 1024)
+                return BadRequest("File too large. Maximum 100MB allowed.");
 
             var validTypes = new[] { "audio/mpeg", "audio/wav", "audio/mp3", "audio/flac" };
             if (!validTypes.Contains(audioFile.ContentType))

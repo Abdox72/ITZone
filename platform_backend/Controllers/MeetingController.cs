@@ -1,8 +1,11 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 using System.Text.Json;
 
 namespace platform_backend.Controllers
 {
+    [Authorize]
     [Route("api/[controller]")]
     [ApiController]
     public class MeetingController : ControllerBase
@@ -38,13 +41,45 @@ namespace platform_backend.Controllers
             }
         }
 
+        /// <summary>
+        /// Helper method to get current user's email from JWT claims
+        /// </summary>
+        private string GetCurrentUserEmail()
+        {
+            return User.FindFirst(ClaimTypes.Email)?.Value ?? "unknown@example.com";
+        }
+
+        /// <summary>
+        /// Helper method to get current user's ID from JWT claims
+        /// </summary>
+        private string GetCurrentUserId()
+        {
+            return User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0";
+        }
+
+        /// <summary>
+        /// Check if current user has access to the meeting (organizer or participant)
+        /// </summary>
+        private bool HasMeetingAccess(MeetingResponse meeting)
+        {
+            var userEmail = GetCurrentUserEmail();
+            return meeting.OrganizerEmail == userEmail || 
+                   meeting.ParticipantEmails.Contains(userEmail);
+        }
+
         [HttpGet]
         public IActionResult GetAllMeetings()
         {
             try
             {
-                var meetings = _meetings.OrderByDescending(m => m.CreatedAt).ToList();
-                return Ok(meetings);
+                var userEmail = GetCurrentUserEmail();
+                // Only return meetings where user is organizer or participant
+                var userMeetings = _meetings.Where(m => 
+                    m.OrganizerEmail == userEmail || 
+                    m.ParticipantEmails.Contains(userEmail)
+                ).OrderByDescending(m => m.CreatedAt).ToList();
+                
+                return Ok(userMeetings);
             }
             catch (Exception ex)
             {
@@ -64,6 +99,12 @@ namespace platform_backend.Controllers
                     return NotFound(new { message = "Meeting not found" });
                 }
 
+                // Check if user has access to this meeting
+                if (!HasMeetingAccess(meeting))
+                {
+                    return Forbid("You don't have access to this meeting");
+                }
+
                 return Ok(meeting);
             }
             catch (Exception ex)
@@ -78,6 +119,8 @@ namespace platform_backend.Controllers
         {
             try
             {
+                var currentUserEmail = GetCurrentUserEmail();
+                
                 var meeting = new MeetingResponse
                 {
                     Id = _nextId++,
@@ -88,7 +131,7 @@ namespace platform_backend.Controllers
                     Status = "scheduled",
                     ParticipantEmails = request.ParticipantEmails ?? new List<string>(),
                     CreatedAt = DateTime.UtcNow,
-                    OrganizerEmail = request.OrganizerEmail ?? "organizer@example.com",
+                    OrganizerEmail = currentUserEmail, // Use authenticated user's email
                     JitsiRoomName = $"meeting-{_nextId - 1}",
                     IsRecordingEnabled = request.IsRecordingEnabled,
                     RecordingUrl = "",
@@ -97,7 +140,7 @@ namespace platform_backend.Controllers
                 };
 
                 _meetings.Add(meeting);
-                _logger.LogInformation("Created meeting: {Title}", request.Title);
+                _logger.LogInformation("Created meeting: {Title} by user: {Email}", request.Title, currentUserEmail);
                 return Ok(meeting);
             }
             catch (Exception ex)
@@ -118,6 +161,13 @@ namespace platform_backend.Controllers
                     return NotFound(new { message = "Meeting not found" });
                 }
 
+                var currentUserEmail = GetCurrentUserEmail();
+                // Only organizer can update meeting
+                if (meeting.OrganizerEmail != currentUserEmail)
+                {
+                    return Forbid("Only the meeting organizer can update this meeting");
+                }
+
                 meeting.Title = request.Title;
                 meeting.Description = request.Description;
                 meeting.StartTime = request.StartTime;
@@ -125,7 +175,7 @@ namespace platform_backend.Controllers
                 meeting.ParticipantEmails = request.ParticipantEmails ?? meeting.ParticipantEmails;
                 meeting.IsRecordingEnabled = request.IsRecordingEnabled;
 
-                _logger.LogInformation("Updated meeting: {Title}", request.Title);
+                _logger.LogInformation("Updated meeting: {Title} by user: {Email}", request.Title, currentUserEmail);
                 return Ok(meeting);
             }
             catch (Exception ex)
@@ -146,8 +196,15 @@ namespace platform_backend.Controllers
                     return NotFound(new { message = "Meeting not found" });
                 }
 
+                var currentUserEmail = GetCurrentUserEmail();
+                // Only organizer can delete meeting
+                if (meeting.OrganizerEmail != currentUserEmail)
+                {
+                    return Forbid("Only the meeting organizer can delete this meeting");
+                }
+
                 _meetings.Remove(meeting);
-                _logger.LogInformation("Deleted meeting: {Id}", id);
+                _logger.LogInformation("Deleted meeting: {Id} by user: {Email}", id, currentUserEmail);
                 return Ok(new { message = "Meeting deleted successfully" });
             }
             catch (Exception ex)
@@ -168,10 +225,17 @@ namespace platform_backend.Controllers
                     return NotFound(new { message = "Meeting not found" });
                 }
 
+                // Check if user has access to this meeting
+                if (!HasMeetingAccess(meeting))
+                {
+                    return Forbid("You don't have access to this meeting");
+                }
+
                 meeting.Status = "completed";
                 meeting.CompletedAt = DateTime.UtcNow;
 
-                _logger.LogInformation("Completed meeting: {Id}", id);
+                var currentUserEmail = GetCurrentUserEmail();
+                _logger.LogInformation("Completed meeting: {Id} by user: {Email}", id, currentUserEmail);
                 return Ok(meeting);
             }
             catch (Exception ex)
@@ -192,10 +256,17 @@ namespace platform_backend.Controllers
                     return NotFound(new { message = "Meeting not found" });
                 }
 
+                // Check if user has access to this meeting
+                if (!HasMeetingAccess(meeting))
+                {
+                    return Forbid("You don't have access to this meeting");
+                }
+
                 meeting.Status = "in-progress";
                 meeting.StartedAt = DateTime.UtcNow;
 
-                _logger.LogInformation("Started meeting: {Id}", id);
+                var currentUserEmail = GetCurrentUserEmail();
+                _logger.LogInformation("Started meeting: {Id} by user: {Email}", id, currentUserEmail);
                 return Ok(meeting);
             }
             catch (Exception ex)
@@ -210,9 +281,20 @@ namespace platform_backend.Controllers
         {
             try
             {
+                var currentUserEmail = GetCurrentUserEmail();
+                var currentUserId = GetCurrentUserId();
+                
+                // Users can only access their own meetings
+                if (userId != currentUserEmail && userId != currentUserId)
+                {
+                    return Forbid("You can only access your own meetings");
+                }
+
                 var userMeetings = _meetings.Where(m => 
                     m.ParticipantEmails.Contains(userId) || 
-                    m.OrganizerEmail == userId
+                    m.OrganizerEmail == userId ||
+                    m.ParticipantEmails.Contains(currentUserEmail) || 
+                    m.OrganizerEmail == currentUserEmail
                 ).OrderByDescending(m => m.CreatedAt).ToList();
 
                 return Ok(userMeetings);
@@ -235,12 +317,20 @@ namespace platform_backend.Controllers
                     return NotFound(new { message = "Meeting not found" });
                 }
 
+                var currentUserEmail = GetCurrentUserEmail();
+                // Only organizer can add participants
+                if (meeting.OrganizerEmail != currentUserEmail)
+                {
+                    return Forbid("Only the meeting organizer can add participants");
+                }
+
                 if (!meeting.ParticipantEmails.Contains(request.Email))
                 {
                     meeting.ParticipantEmails.Add(request.Email);
                 }
 
-                _logger.LogInformation("Added participant {Email} to meeting {Id}", request.Email, meetingId);
+                _logger.LogInformation("Added participant {Email} to meeting {Id} by user: {CurrentUser}", 
+                    request.Email, meetingId, currentUserEmail);
                 return Ok(meeting);
             }
             catch (Exception ex)
@@ -261,9 +351,17 @@ namespace platform_backend.Controllers
                     return NotFound(new { message = "Meeting not found" });
                 }
 
+                var currentUserEmail = GetCurrentUserEmail();
+                // Only organizer can remove participants, or users can remove themselves
+                if (meeting.OrganizerEmail != currentUserEmail && request.Email != currentUserEmail)
+                {
+                    return Forbid("Only the meeting organizer can remove participants, or you can remove yourself");
+                }
+
                 meeting.ParticipantEmails.Remove(request.Email);
 
-                _logger.LogInformation("Removed participant {Email} from meeting {Id}", request.Email, meetingId);
+                _logger.LogInformation("Removed participant {Email} from meeting {Id} by user: {CurrentUser}", 
+                    request.Email, meetingId, currentUserEmail);
                 return Ok(meeting);
             }
             catch (Exception ex)
@@ -284,6 +382,12 @@ namespace platform_backend.Controllers
                     return NotFound(new { message = "Meeting not found" });
                 }
 
+                // Check if user has access to this meeting
+                if (!HasMeetingAccess(meeting))
+                {
+                    return Forbid("You don't have access to this meeting");
+                }
+
                 var task = new MeetingTask
                 {
                     Id = meeting.Tasks.Count + 1,
@@ -297,7 +401,8 @@ namespace platform_backend.Controllers
 
                 meeting.Tasks.Add(task);
 
-                _logger.LogInformation("Added task to meeting {Id}", meetingId);
+                var currentUserEmail = GetCurrentUserEmail();
+                _logger.LogInformation("Added task to meeting {Id} by user: {Email}", meetingId, currentUserEmail);
                 return Ok(task);
             }
             catch (Exception ex)
@@ -318,10 +423,23 @@ namespace platform_backend.Controllers
                     return NotFound(new { message = "Meeting not found" });
                 }
 
+                // Check if user has access to this meeting
+                if (!HasMeetingAccess(meeting))
+                {
+                    return Forbid("You don't have access to this meeting");
+                }
+
                 var task = meeting.Tasks.FirstOrDefault(t => t.Id == taskId);
                 if (task == null)
                 {
                     return NotFound(new { message = "Task not found" });
+                }
+
+                var currentUserEmail = GetCurrentUserEmail();
+                // Users can update tasks assigned to them, or organizer can update any task
+                if (task.AssignedTo != currentUserEmail && meeting.OrganizerEmail != currentUserEmail)
+                {
+                    return Forbid("You can only update tasks assigned to you, or you must be the meeting organizer");
                 }
 
                 task.Title = request.Title;
@@ -330,7 +448,7 @@ namespace platform_backend.Controllers
                 task.Priority = request.Priority;
                 task.Status = request.Status;
 
-                _logger.LogInformation("Updated task {TaskId} in meeting {Id}", taskId, meetingId);
+                _logger.LogInformation("Updated task {TaskId} in meeting {Id} by user: {Email}", taskId, meetingId, currentUserEmail);
                 return Ok(task);
             }
             catch (Exception ex)
@@ -351,9 +469,16 @@ namespace platform_backend.Controllers
                     return NotFound(new { message = "Meeting not found" });
                 }
 
+                // Check if user has access to this meeting
+                if (!HasMeetingAccess(meeting))
+                {
+                    return Forbid("You don't have access to this meeting");
+                }
+
                 meeting.MeetingNotes = request.Notes;
 
-                _logger.LogInformation("Updated notes for meeting {Id}", meetingId);
+                var currentUserEmail = GetCurrentUserEmail();
+                _logger.LogInformation("Updated notes for meeting {Id} by user: {Email}", meetingId, currentUserEmail);
                 return Ok(meeting);
             }
             catch (Exception ex)

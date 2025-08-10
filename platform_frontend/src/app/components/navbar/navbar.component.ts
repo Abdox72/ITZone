@@ -38,25 +38,21 @@ import { AuthService } from '../../services/auth.service';
         </div>
 
         <div class="navbar-user">
-          <ng-container *ngIf="auth.currentUser; else guestLinks">
+          <ng-container *ngIf="auth.user$ | async as user; else guestLinks">
             <div class="user-info">
-              <img *ngIf="auth.currentUser.avatar" [src]="auth.currentUser.avatar" class="user-avatar" alt="User Avatar">
-              <i *ngIf="!auth.currentUser.avatar" class="fas fa-user-circle"></i>
-              <span>{{ auth.currentUser.name }}</span>
+              <img *ngIf="user.photoUrl" [src]="user.photoUrl" class="user-avatar" alt="User Avatar">
+              <i *ngIf="!user.photoUrl" class="fas fa-user-circle"></i>
+              <span>{{ user.displayName }}</span>
             </div>
             <button class="btn btn-outline" (click)="logout()">
               <i class="fas fa-sign-out-alt"></i>
-              تسجيل الخروج
+              Sign Out
             </button>
           </ng-container>
           <ng-template #guestLinks>
-            <a [routerLink]="['/login']" class="btn btn-outline">
-              <i class="fas fa-sign-in-alt"></i>
-              دخول
-            </a>
-            <a [routerLink]="['/register']" class="btn btn-outline">
-              <i class="fas fa-user-plus"></i>
-              تسجيل
+            <a [routerLink]="['/login']" class="btn btn-primary">
+              <i class="fab fa-google"></i>
+              Sign In with Google
             </a>
           </ng-template>
         </div>
@@ -181,6 +177,17 @@ import { AuthService } from '../../services/auth.service';
       border-color: #d32f2f;
     }
 
+    .btn-primary {
+      background: #4285f4;
+      color: white;
+      border: 1px solid #4285f4;
+    }
+
+    .btn-primary:hover {
+      background: #3367d6;
+      border-color: #3367d6;
+    }
+
     @media (max-width: 768px) {
       .navbar-container {
         padding: 0 1rem;
@@ -210,8 +217,14 @@ import { AuthService } from '../../services/auth.service';
 export class NavbarComponent {
   constructor(public auth: AuthService, private router: Router) {}
 
-  logout(): void {
-    this.auth.logout();
-    this.router.navigateByUrl('/login');
+  async logout(): Promise<void> {
+    try {
+      await this.auth.logout();
+      this.router.navigateByUrl('/login');
+    } catch (error) {
+      console.error('Logout failed:', error);
+      // Still redirect to login even if logout request fails
+      this.router.navigateByUrl('/login');
+    }
   }
 } 

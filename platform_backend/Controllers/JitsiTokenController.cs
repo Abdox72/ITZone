@@ -2,12 +2,14 @@ using System;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 
 namespace platform_backend.Controllers
 {
+    [AllowAnonymous]
     [ApiController]
     [Route("api/jitsi")]
     public class JitsiTokenController : ControllerBase
@@ -17,6 +19,7 @@ namespace platform_backend.Controllers
         public JitsiTokenController(IConfiguration config)
             => _config = config;
 
+        [AllowAnonymous]
         [HttpGet("token")]
         public IActionResult GetToken([FromQuery] string room, [FromQuery] string user)
         {

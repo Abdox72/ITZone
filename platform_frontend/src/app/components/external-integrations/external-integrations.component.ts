@@ -15,11 +15,11 @@ import { ExternalIntegration } from '../../models/external-integration.model';
         
         <div class="user-info" *ngIf="auth.currentUser">
           <div class="user-avatar">
-            <img *ngIf="auth.currentUser.avatar" [src]="auth.currentUser.avatar" alt="User Avatar">
-            <i *ngIf="!auth.currentUser.avatar" class="fas fa-user-circle"></i>
+            <img *ngIf="auth.currentUser.photoUrl" [src]="auth.currentUser.photoUrl" alt="User Avatar">
+            <i *ngIf="!auth.currentUser.photoUrl" class="fas fa-user-circle"></i>
           </div>
           <div class="user-details">
-            <h4>{{ auth.currentUser.name }}</h4>
+            <h4>{{ auth.currentUser.displayName }}</h4>
             <p>{{ auth.currentUser.email }}</p>
           </div>
         </div>

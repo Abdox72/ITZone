@@ -8,16 +8,53 @@ import { EmbeddedJitsiComponent } from './components/embedded-jitsi/embedded-jit
 import { ExternalIntegrationsComponent } from './components/external-integrations/external-integrations.component';
 import { LoginComponent } from './components/login/login.component';
 import { RegisterComponent } from './components/register/register.component';
+import { AuthGuard, GuestGuard } from './guards/auth.guard';
 
 export const routes: Routes = [
-  { path: '', component: HomeComponent },
-  { path: 'meetings', component: MeetingListComponent },
-  { path: 'meetings/new', component: CreateMeetingComponent },
-  { path: 'meetings/:id', component: MeetingDetailsComponent },
-  { path: 'jitsi-meeting', component: JitsiMeetingComponent },
-  { path: 'embedded-jitsi', component: EmbeddedJitsiComponent },
-  { path: 'integrations', component: ExternalIntegrationsComponent },
-  { path: 'login', component: LoginComponent },
-  { path: 'register', component: RegisterComponent },
+  { 
+    path: '', 
+    component: HomeComponent,
+    canActivate: [AuthGuard]
+  },
+  { 
+    path: 'meetings', 
+    component: MeetingListComponent,
+    canActivate: [AuthGuard]
+  },
+  { 
+    path: 'meetings/new', 
+    component: CreateMeetingComponent,
+    canActivate: [AuthGuard]
+  },
+  { 
+    path: 'meetings/:id', 
+    component: MeetingDetailsComponent,
+    canActivate: [AuthGuard]
+  },
+  { 
+    path: 'jitsi-meeting', 
+    component: JitsiMeetingComponent,
+    canActivate: [AuthGuard]
+  },
+  { 
+    path: 'embedded-jitsi', 
+    component: EmbeddedJitsiComponent,
+    canActivate: [AuthGuard]
+  },
+  { 
+    path: 'integrations', 
+    component: ExternalIntegrationsComponent,
+    canActivate: [AuthGuard]
+  },
+  { 
+    path: 'login', 
+    component: LoginComponent,
+    canActivate: [GuestGuard]
+  },
+  { 
+    path: 'register', 
+    component: RegisterComponent,
+    canActivate: [GuestGuard]
+  },
   { path: '**', redirectTo: '' }
 ];

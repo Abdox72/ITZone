@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Text.Json;
 using System.Text;
@@ -7,6 +8,7 @@ using Microsoft.Extensions.Configuration;
 
 namespace platform_backend.Controllers
 {
+    [AllowAnonymous]
     [Route("api/external-integration")]
     [ApiController]
     public class ExternalIntegrationController : ControllerBase
@@ -23,6 +25,7 @@ namespace platform_backend.Controllers
             _httpClient = httpClient;
         }
 
+        [AllowAnonymous]
         [HttpGet("test")]
         public IActionResult Test()
         {
